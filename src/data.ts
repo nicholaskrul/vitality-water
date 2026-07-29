@@ -313,3 +313,56 @@ export function formatVolume(ml: number, unit: 'ml' | 'oz'): string {
   }
   return `${Math.round(ml)}ml`;
 }
+import { NotificationItem } from './types'; // Make sure NotificationItem is imported
+
+/**
+ * Send a cheer or nudge notification to a friend in Supabase
+ */
+export async function sendNotificationInSupabase(
+  senderId: string,
+  recipientId: string,
+  senderName: string,
+  type: 'cheer' | 'nudge'
+): Promise<void> {
+  await supabase.from('notifications').insert([
+    {
+      sender_id: senderId,
+      recipient_id: recipientId,
+      sender_name: senderName,
+      type,
+    },
+  ]);
+}
+
+/**
+ * Fetch unread notifications for the current user
+ */
+export async function fetchUserNotifications(userId: string): Promise<NotificationItem[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('recipient_id', userId)
+    .eq('is_read', false)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((n) => ({
+    id: n.id,
+    senderId: n.sender_id,
+    senderName: n.sender_name || 'A friend',
+    type: n.type,
+    createdAt: n.created_at,
+    isRead: n.is_read,
+  }));
+}
+
+/**
+ * Mark a notification as read
+ */
+export async function markNotificationAsRead(notificationId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId);
+}
