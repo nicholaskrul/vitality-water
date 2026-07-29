@@ -6,6 +6,8 @@ import {
   fetchUserLogs,
   addWaterLogToSupabase,
   fetchFriendsLeaderboard,
+  fetchUserChallenges,
+  unlockChallengeInSupabase,
   INITIAL_CHALLENGES,
 } from './data';
 import { supabase } from './lib/supabase';
@@ -51,15 +53,24 @@ export default function App() {
     if (!session?.user?.id) return;
     const userId = session.user.id;
 
-    const [userProfile, userLogs, friendsList] = await Promise.all([
+    const [userProfile, userLogs, friendsList, savedChallenges] = await Promise.all([
       fetchUserProfile(userId),
       fetchUserLogs(userId),
       fetchFriendsLeaderboard(userId),
+      fetchUserChallenges(userId),
     ]);
 
     if (userProfile) setProfile(userProfile);
     setLogs(userLogs);
     setFriends(friendsList);
+
+    // Merge saved Supabase challenge unlocks
+    setChallenges((prev) =>
+      prev.map((c) => ({
+        ...c,
+        unlocked: !!savedChallenges[c.id],
+      }))
+    );
   };
 
   useEffect(() => {
@@ -76,12 +87,10 @@ export default function App() {
     );
   }
 
-  // If not logged in, render Auth Screen
   if (!session) {
     return <AuthScreen />;
   }
 
-  // Fallback loading while profile loads
   if (!profile) {
     return (
       <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center">
@@ -90,7 +99,6 @@ export default function App() {
     );
   }
 
-  // Handle Adding Water
   const handleAddWater = async (amountMl: number) => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
@@ -98,10 +106,17 @@ export default function App() {
     const newLog = await addWaterLogToSupabase(userId, amountMl);
     if (newLog) {
       setLogs((prev) => [newLog, ...prev]);
-      // Refresh friends leaderboard live
       const updatedFriends = await fetchFriendsLeaderboard(userId);
       setFriends(updatedFriends);
     }
+  };
+
+  const handleUnlockChallenge = async (challengeId: string) => {
+    if (!session?.user?.id) return;
+    await unlockChallengeInSupabase(session.user.id, challengeId);
+    setChallenges((prev) =>
+      prev.map((c) => (c.id === challengeId ? { ...c, unlocked: true } : c))
+    );
   };
 
   const handleUpdateProfile = async (updated: Partial<UserProfile>) => {
@@ -156,6 +171,7 @@ export default function App() {
             challenges={challenges}
             profile={profile}
             logs={logs}
+            onUnlockChallenge={handleUnlockChallenge}
           />
         )}
         {activeTab === 'settings' && (
