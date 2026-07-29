@@ -23,7 +23,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     .reduce((sum, log) => sum + log.amountMl, 0);
 
   const fillPercentage = Math.min(100, Math.max(0, (todayTotalMl / profile.dailyTargetMl) * 100));
-  const currentLiters = (todayTotalMl / 1000).toFixed(1);
+  const currentLiters = (todayTotalMl / 1000).toFixed(2);
   const targetLitersFormatted = formatVolume(profile.dailyTargetMl, profile.preferredUnit);
 
   // Calculate time since last drink
