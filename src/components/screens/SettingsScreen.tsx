@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, ActivityLevel, UnitType } from '../../types';
+import { uploadAvatarImage } from '../../data';
 
 interface SettingsScreenProps {
   profile: UserProfile;
