@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, ActivityLevel, UnitType } from '../../types';
 
 interface SettingsScreenProps {
@@ -10,13 +10,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   profile,
   onUpdateProfile,
 }) => {
-  const [weight, setWeight] = useState<number>(profile.weightKg);
-  const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel);
+  const [weight, setWeight] = useState<number>(profile.weightKg || 70);
+  const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel || 'Med');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState(profile.name);
   const [editStatus, setEditStatus] = useState(profile.status);
   const [editAvatar, setEditAvatar] = useState(profile.avatarUrl);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+
+  // Keep local state in sync whenever profile finishes loading from Supabase
+  useEffect(() => {
+    if (profile) {
+      setWeight(profile.weightKg || 70);
+      setActivity(profile.activityLevel || 'Med');
+      setEditName(profile.name);
+      setEditStatus(profile.status);
+      setEditAvatar(profile.avatarUrl);
+    }
+  }, [profile]);
 
   // Activity multipliers
   const activityMultipliers: Record<ActivityLevel, number> = {
@@ -26,11 +37,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   // Calculate base target
-  const calculatedMl = Math.round(weight * 33 * activityMultipliers[activity]);
+  const validWeight = Number(weight) || 70;
+  const calculatedMl = Math.round(validWeight * 33 * activityMultipliers[activity]);
 
   const handleUpdateGoal = () => {
     onUpdateProfile({
-      weightKg: weight,
+      weightKg: validWeight,
       activityLevel: activity,
       dailyTargetMl: calculatedMl,
     });
@@ -61,7 +73,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* Success Banner */}
       {updateSuccess && (
         <div className="p-3 bg-[#00677f] text-white text-xs font-semibold rounded-2xl text-center shadow-lg animate-fadeIn">
-          ✓ Daily hydration goal updated to {profile.preferredUnit === 'oz' ? Math.round(calculatedMl * 0.033814) + ' oz' : calculatedMl.toLocaleString() + ' ml'}!
+          Daily hydration goal updated to{' '}
+          {profile.preferredUnit === 'oz'
+            ? Math.round(calculatedMl * 0.033814) + ' oz'
+            : calculatedMl.toLocaleString() + ' ml'}
+          !
         </div>
       )}
 
@@ -69,7 +85,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <div className="relative overflow-hidden bg-[#e7eeff] rounded-2xl p-6 shadow-sm border border-white/60">
         <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-[#00677f]/5 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex items-center gap-4 relative z-10">
-          <div className="relative cursor-pointer group" onClick={() => setIsEditingProfile(true)}>
+          <div
+            className="relative cursor-pointer group"
+            onClick={() => setIsEditingProfile(true)}
+          >
             <img
               src={profile.avatarUrl}
               alt={profile.name}
@@ -171,7 +190,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           Preferences
         </h3>
         <div className="bg-[#f0f3ff] rounded-2xl overflow-hidden shadow-sm border border-white/60">
-          {/* Unit Selection */}
           <div className="p-4 flex items-center justify-between border-b border-[#bbc9cf]/20">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[#3c494e]">straighten</span>
@@ -203,7 +221,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </div>
           </div>
 
-          {/* Smart Reminders Toggle */}
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[#3c494e]">
@@ -234,13 +251,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
       </section>
 
-      {/* App Info / Footer */}
       <div className="pt-2 flex flex-col items-center gap-2">
         <div className="w-12 h-1 bg-[#d8e3fb] rounded-full"></div>
         <p className="font-['Inter'] text-xs text-[#bbc9cf] italic">Vitality Water v2.4.0</p>
       </div>
 
-      {/* Edit Profile Modal */}
       {isEditingProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
           <form
@@ -248,7 +263,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] space-y-4"
           >
             <h3 className="font-['Montserrat'] text-lg font-bold text-[#111c2d]">Edit Profile</h3>
-
             <div className="space-y-3">
               <div>
                 <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
@@ -261,7 +275,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
                 />
               </div>
-
               <div>
                 <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
                   Membership Status
@@ -273,7 +286,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
                 />
               </div>
-
               <div>
                 <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
                   Avatar Image URL
@@ -286,7 +298,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 />
               </div>
             </div>
-
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
