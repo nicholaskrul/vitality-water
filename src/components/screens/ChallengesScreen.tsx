@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PlantChallenge, UserProfile, LogEntry } from '../../types';
 
 interface ChallengesScreenProps {
   challenges: PlantChallenge[];
   profile: UserProfile;
   logs: LogEntry[];
+  onUnlockChallenge?: (challengeId: string) => void;
 }
 
 export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
   challenges,
   profile,
   logs,
+  onUnlockChallenge,
 }) => {
   const [selectedChallenge, setSelectedChallenge] = useState<PlantChallenge | null>(null);
 
-  // 1. Calculate Real Stats from Supabase Logs
+  // 1. Calculate Real Stats from Supabase Water Logs
   const totalCumulativeMl = logs.reduce((sum, l) => sum + l.amountMl, 0);
 
   // Group logs by day to calculate best single-day intake
@@ -24,19 +26,21 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
     return acc;
   }, {} as Record<string, number>);
 
-  const maxSingleDayMl = Math.max(0, ...Object.values(dayTotals));
+  const maxSingleDayMl = Object.keys(dayTotals).length > 0 
+    ? Math.max(...Object.values(dayTotals)) 
+    : 0;
 
-  // Count morning drinks (logged before 9:00 AM)
+  // Count morning drinks logged before 9:00 AM
   const morningDrinksCount = logs.filter((l) => new Date(l.timestamp).getHours() < 9).length;
 
-  // 2. Map Dynamic Progress & Lock/Unlock state
+  // 2. Compute dynamic unlock state & real progress
   const dynamicChallenges = challenges.map((item) => {
     let progressMl = item.progressMl || 0;
     let targetMl = item.targetMl || 100;
     let autoUnlocked = item.unlocked;
 
     if (item.id === 'fern') {
-      progressMl = Math.min(7, profile.longestStreak || profile.currentStreak || 1);
+      progressMl = Math.min(7, profile.longestStreak || profile.currentStreak || 0);
       targetMl = 7;
       if (progressMl >= 7) autoUnlocked = true;
     } else if (item.id === 'lotus') {
@@ -49,7 +53,7 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
       if (morningDrinksCount >= 30) autoUnlocked = true;
     } else if (item.id === 'bamboo') {
       progressMl = totalCumulativeMl;
-      targetMl = 100000; // 100L
+      targetMl = 100000; // 100 Liters
       if (totalCumulativeMl >= 100000) autoUnlocked = true;
     }
 
@@ -60,6 +64,16 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
       targetMl,
     };
   });
+
+  // Automatically trigger database unlock for any newly earned plant
+  useEffect(() => {
+    dynamicChallenges.forEach((item) => {
+      const original = challenges.find((c) => c.id === item.id);
+      if (item.unlocked && original && !original.unlocked && onUnlockChallenge) {
+        onUnlockChallenge(item.id);
+      }
+    });
+  }, [dynamicChallenges]);
 
   const unlockedCount = dynamicChallenges.filter((c) => c.unlocked).length;
 
@@ -144,7 +158,7 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
                   </span>
                   <div className="w-full bg-[#bbc9cf]/40 h-1.5 rounded-full overflow-hidden mt-1.5">
                     <div
-                      className="bg-[#00677f] h-full rounded-full"
+                      className="bg-[#00677f] h-full rounded-full transition-all duration-500"
                       style={{ width: `${progressPct}%` }}
                     ></div>
                   </div>
@@ -158,7 +172,7 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
         })}
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Inspection Modal */}
       {selectedChallenge && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff]">
