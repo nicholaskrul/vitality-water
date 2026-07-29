@@ -14,10 +14,10 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
 }) => {
   const [selectedChallenge, setSelectedChallenge] = useState<PlantChallenge | null>(null);
 
-  // 1. Calculate Real Stats from Logs
+  // 1. Calculate Real Stats from Supabase Logs
   const totalCumulativeMl = logs.reduce((sum, l) => sum + l.amountMl, 0);
 
-  // Group logs by day to find best single day intake
+  // Group logs by day to calculate best single-day intake
   const dayTotals = logs.reduce((acc, log) => {
     const dayKey = new Date(log.timestamp).toDateString();
     acc[dayKey] = (acc[dayKey] || 0) + log.amountMl;
@@ -29,7 +29,7 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
   // Count morning drinks (logged before 9:00 AM)
   const morningDrinksCount = logs.filter((l) => new Date(l.timestamp).getHours() < 9).length;
 
-  // 2. Map Dynamic Progress to Challenges
+  // 2. Map Dynamic Progress & Lock/Unlock state
   const dynamicChallenges = challenges.map((item) => {
     let progressMl = item.progressMl || 0;
     let targetMl = item.targetMl || 100;
@@ -96,7 +96,10 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
       {/* Forest Grid */}
       <div className="grid grid-cols-2 gap-4">
         {dynamicChallenges.map((item) => {
-          const progressPct = Math.min(100, Math.round(((item.progressMl || 0) / (item.targetMl || 1)) * 100));
+          const progressPct = Math.min(
+            100,
+            Math.round(((item.progressMl || 0) / (item.targetMl || 1)) * 100)
+          );
 
           if (item.unlocked) {
             return (
@@ -140,7 +143,10 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
                     {item.title}
                   </span>
                   <div className="w-full bg-[#bbc9cf]/40 h-1.5 rounded-full overflow-hidden mt-1.5">
-                    <div className="bg-[#00677f] h-full rounded-full" style={{ width: `${progressPct}%` }}></div>
+                    <div
+                      className="bg-[#00677f] h-full rounded-full"
+                      style={{ width: `${progressPct}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -164,7 +170,11 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
             </button>
             <div className="flex flex-col items-center text-center">
               <div className="w-32 h-32 rounded-2xl bg-[#f0f3ff] p-2 mb-4 overflow-hidden shadow-inner border border-[#dee8ff]">
-                <img src={selectedChallenge.imgUrl} alt={selectedChallenge.alt} className="w-full h-full object-contain" />
+                <img
+                  src={selectedChallenge.imgUrl}
+                  alt={selectedChallenge.alt}
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="text-xs font-bold text-[#00677f] tracking-widest uppercase">
                 {selectedChallenge.title}
@@ -179,14 +189,14 @@ export const ChallengesScreen: React.FC<ChallengesScreenProps> = ({
                 {selectedChallenge.description}
               </p>
 
-              {/* Progress Bar inside modal */}
+              {/* Dynamic Progress Bar inside modal */}
               {!selectedChallenge.unlocked && (
                 <div className="w-full mt-4 p-3 bg-[#f0f3ff] rounded-xl text-left border border-white/60">
                   <div className="flex justify-between text-xs font-semibold text-[#3c494e] mb-1">
                     <span>Progress</span>
                     <span>
                       {selectedChallenge.targetMl && selectedChallenge.targetMl >= 1000
-                        ? `${((selectedChallenge.progressMl || 0) / 1000).toFixed(1)}L / ${(selectedChallenge.targetMl / 1000).toFixed(1)}L`
+                        ? `${((selectedChallenge.progressMl || 0) / 1000).toFixed(2)}L / ${(selectedChallenge.targetMl / 1000).toFixed(1)}L`
                         : `${selectedChallenge.progressMl || 0} / ${selectedChallenge.targetMl}`}
                     </span>
                   </div>
