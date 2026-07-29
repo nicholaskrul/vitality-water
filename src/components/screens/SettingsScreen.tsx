@@ -278,65 +278,83 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       </div>
 
       {isEditingProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
-          <form
-            onSubmit={handleSaveProfileModal}
-            className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] space-y-4"
-          >
-            <h3 className="font-['Montserrat'] text-lg font-bold text-[#111c2d]">Edit Profile</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
-                />
-              </div>
-              <div>
-                <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
-                  Membership Status
-                </label>
-                <input
-                  type="text"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
-                />
-              </div>
-              <div>
-                <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
-                  Avatar Image URL
-                </label>
-                <input
-                  type="text"
-                  value={editAvatar}
-                  onChange={(e) => setEditAvatar(e.target.value)}
-                  className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-xs text-[#111c2d] outline-none border border-[#e7eeff]"
-                />
-              </div>
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
+    <form
+      onSubmit={handleSaveProfileModal}
+      className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] space-y-4"
+    >
+      <h3 className="font-['Montserrat'] text-lg font-bold text-[#111c2d]">Edit Profile</h3>
+
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Avatar Preview & Upload Button */}
+      <div className="flex flex-col items-center gap-2 py-2">
+        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-[#00677f]">
+          <img src={editAvatar} alt="Avatar Preview" className="w-full h-full object-cover" />
+          {isUploading && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs font-semibold">
+              Uploading...
             </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                className="flex-1 py-2.5 bg-[#f0f3ff] text-[#3c494e] rounded-xl font-['Inter'] text-xs font-semibold cursor-pointer hover:bg-[#dee8ff]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-2.5 bg-[#00677f] text-white rounded-xl font-['Inter'] text-xs font-bold cursor-pointer hover:bg-[#00566a] shadow-md"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
+          )}
         </div>
-      )}
-    </div>
-  );
-};
+        <button
+          type="button"
+          disabled={isUploading}
+          onClick={() => fileInputRef.current?.click()}
+          className="px-4 py-2 bg-[#e7eeff] text-[#00677f] hover:bg-[#d8e3fb] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-base">photo_camera</span>
+          Choose from Camera Roll
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
+            Full Name
+          </label>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
+          />
+        </div>
+        <div>
+          <label className="font-['Inter'] text-xs font-semibold text-[#3c494e] block mb-1">
+            Membership Status
+          </label>
+          <input
+            type="text"
+            value={editStatus}
+            onChange={(e) => setEditStatus(e.target.value)}
+            className="w-full h-10 bg-[#f0f3ff] rounded-xl px-3 font-['Inter'] text-sm text-[#111c2d] outline-none border border-[#e7eeff]"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => setIsEditingProfile(false)}
+          className="flex-1 py-2.5 bg-[#f0f3ff] text-[#3c494e] rounded-xl font-['Inter'] text-xs font-semibold cursor-pointer hover:bg-[#dee8ff]"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="flex-1 py-2.5 bg-[#00677f] text-white rounded-xl font-['Inter'] text-xs font-bold cursor-pointer hover:bg-[#00566a] shadow-md"
+        >
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+)}
