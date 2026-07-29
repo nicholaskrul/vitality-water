@@ -93,6 +93,28 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
 
 // --- Supabase Async Functions ---
 
+export async function uploadAvatarImage(userId: string, file: File): Promise<string | null> {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${userId}/avatar-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (err: any) {
+    console.error('Avatar upload failed:', err.message);
+    return null;
+  }
+}
+
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
   if (error || !data) return null;
@@ -211,7 +233,6 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
     };
   });
 
-  // Sort by highest intake
   friendsData.sort((a, b) => b.intakeLiters - a.intakeLiters);
   friendsData.forEach((f, idx) => {
     f.rank = idx + 1;
@@ -220,7 +241,6 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
   return friendsData;
 }
 
-// Utility functions
 export function mlToOz(ml: number): number {
   return Number((ml * 0.033814).toFixed(1));
 }
@@ -233,28 +253,4 @@ export function formatVolume(ml: number, unit: 'ml' | 'oz'): string {
     return `${(ml / 1000).toFixed(1)}L`;
   }
   return `${Math.round(ml)}ml`;
-}
-export async function uploadAvatarImage(userId: string, file: File): Promise<string | null> {
-  try {
-    const fileExt = file.name.split('.').pop();
-    // Path: user_id/avatar-timestamp.ext to prevent browser caching stale images
-    const filePath = `${userId}/avatar-${Date.now()}.${fileExt}`;
-
-    // 1. Upload file to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    // 2. Get Public URL
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (err: any) {
-    console.error('Avatar upload failed:', err.message);
-    return null;
-  }
 }
