@@ -50,3 +50,11 @@ export interface PlantChallenge {
   progressMl?: number;
   targetMl?: number;
 }
+export interface NotificationItem {
+  id: string;
+  senderId: string;
+  senderName: string;
+  type: 'cheer' | 'nudge';
+  createdAt: string;
+  isRead: boolean;
+}
