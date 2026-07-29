@@ -18,6 +18,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [editStatus, setEditStatus] = useState(profile.status);
   const [editAvatar, setEditAvatar] = useState(profile.avatarUrl);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || !profile) return;
+
+  setIsUploading(true);
+  // Get user ID from current profile state or session
+  const { data: { user } } = await import('../../lib/supabase').then(m => m.supabase.auth.getUser());
+  
+  if (user) {
+    const publicUrl = await uploadAvatarImage(user.id, file);
+    if (publicUrl) {
+      setEditAvatar(publicUrl);
+      // Immediately save to profile
+      onUpdateProfile({ avatarUrl: publicUrl });
+    }
+  }
+  setIsUploading(false);
+};
 
   // Keep local state in sync whenever profile finishes loading from Supabase
   useEffect(() => {
