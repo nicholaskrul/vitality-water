@@ -87,10 +87,12 @@ export default function App() {
     );
   }
 
+  // If not logged in, render Auth Screen
   if (!session) {
     return <AuthScreen />;
   }
 
+  // Fallback loading while profile loads
   if (!profile) {
     return (
       <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center">
@@ -99,6 +101,7 @@ export default function App() {
     );
   }
 
+  // Handle Adding Water
   const handleAddWater = async (amountMl: number) => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
@@ -106,11 +109,13 @@ export default function App() {
     const newLog = await addWaterLogToSupabase(userId, amountMl);
     if (newLog) {
       setLogs((prev) => [newLog, ...prev]);
+      // Refresh friends leaderboard live
       const updatedFriends = await fetchFriendsLeaderboard(userId);
       setFriends(updatedFriends);
     }
   };
 
+  // Handle Unlocking Challenges in Supabase
   const handleUnlockChallenge = async (challengeId: string) => {
     if (!session?.user?.id) return;
     await unlockChallengeInSupabase(session.user.id, challengeId);
@@ -163,7 +168,6 @@ export default function App() {
                 prev.map((f) => (f.id === id ? { ...f, nudged: !f.nudged } : f))
               )
             }
-            onDrinkNow={() => handleAddWater(250)}
           />
         )}
         {activeTab === 'challenges' && (
