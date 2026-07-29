@@ -84,6 +84,50 @@ export default function App() {
     }
   }, [session]);
 
+  // 3. Smart Inactivity Reminder (3-hour check between 10 AM and 8 PM)
+  useEffect(() => {
+    // Request permission if default
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const checkHydrationInactivity = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+
+      // Only run between 10:00 AM (10) and 8:00 PM (20)
+      if (currentHour < 10 || currentHour >= 20) return;
+
+      if (!logs || logs.length === 0) return;
+
+      const latestLogTime = new Date(logs[0].timestamp).getTime();
+      const threeHoursInMs = 3 * 60 * 60 * 1000;
+      const timeSinceLastDrink = now.getTime() - latestLogTime;
+
+      if (timeSinceLastDrink >= threeHoursInMs) {
+        const lastNotified = localStorage.getItem('last_inactivity_notif_time');
+        const nowTs = now.getTime();
+
+        // Throttle: don't notify if already alerted within the last 3 hours
+        if (!lastNotified || nowTs - Number(lastNotified) >= threeHoursInMs) {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('💧 Hydration Reminder', {
+              body: "It's been over 3 hours since your last drink! Time to stay hydrated.",
+              icon: profile?.avatarUrl || '/favicon.ico',
+            });
+          }
+
+          localStorage.setItem('last_inactivity_notif_time', nowTs.toString());
+        }
+      }
+    };
+
+    checkHydrationInactivity();
+    const intervalId = setInterval(checkHydrationInactivity, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [logs, profile]);
+
   if (loadingSession) {
     return (
       <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center">
