@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Friend } from '../../types';
 
 interface FriendsScreenProps {
@@ -14,10 +14,40 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
   onCheerFriend,
   onNudgeFriend,
 }) => {
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const topThree = friends.slice(0, 3);
 
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const handleCheer = (friend: Friend) => {
+    onCheerFriend(friend.id);
+    if (!friend.cheered) {
+      triggerToast(`👏 You cheered ${friend.name}!`);
+    }
+  };
+
+  const handleNudge = (friend: Friend) => {
+    onNudgeFriend(friend.id);
+    if (!friend.nudged) {
+      triggerToast(`💧 You sent a hydration nudge to ${friend.name}!`);
+    }
+  };
+
   return (
-    <div className="flex flex-col w-full max-w-md mx-auto px-6 pb-28 pt-2 font-['Inter'] space-y-6">
+    <div className="flex flex-col w-full max-w-md mx-auto px-6 pb-28 pt-2 font-['Inter'] space-y-6 relative">
+      {/* Toast Notification Pop-up */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#111c2d] text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg border border-white/20 animate-bounce">
+          {toastMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold text-[#3c494e] uppercase tracking-wider">
@@ -109,20 +139,20 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                 {!isUser && (
                   <div className="flex gap-1.5">
                     <button
-                      onClick={() => onCheerFriend(friend.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      onClick={() => handleCheer(friend)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                         friend.cheered
-                          ? 'bg-amber-100 text-amber-700'
+                          ? 'bg-amber-100 text-amber-700 border border-amber-300'
                           : 'bg-[#f0f3ff] text-[#00677f] hover:bg-[#dee8ff]'
                       }`}
                     >
                       {friend.cheered ? '👏 Cheered' : '👏 Cheer'}
                     </button>
                     <button
-                      onClick={() => onNudgeFriend(friend.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      onClick={() => handleNudge(friend)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                         friend.nudged
-                          ? 'bg-sky-100 text-sky-700'
+                          ? 'bg-sky-100 text-sky-700 border border-sky-300'
                           : 'bg-[#f0f3ff] text-[#3c494e] hover:bg-[#dee8ff]'
                       }`}
                     >
