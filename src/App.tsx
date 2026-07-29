@@ -151,7 +151,13 @@ export default function App() {
             onDrinkNow={() => handleAddWater(250)}
           />
         )}
-        {activeTab === 'challenges' && <ChallengesScreen challenges={challenges} />}
+        {activeTab === 'challenges' && (
+          <ChallengesScreen
+            challenges={challenges}
+            profile={profile}
+            logs={logs}
+          />
+        )}
         {activeTab === 'settings' && (
           <div className="w-full">
             <SettingsScreen profile={profile} onUpdateProfile={handleUpdateProfile} />
