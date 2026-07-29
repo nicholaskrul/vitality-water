@@ -22,7 +22,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBXrUIuM9xGwmPwQpWX88lYdmt563xRyhmVkwk8aFMQNQA2hUXrpGyG4hmsJ2PO_97M2eOqugcQvXcfW7lrfeVCGsD1amSdJFZ-SdiFvKFAXbCq9M3aXS4zq9mpRcFuRCVL-JZZUZQ_oxNWi-rjDzyQ_6Ik58qWrgPd0tLmaU5rpcf8IBwnhKGW5y4-Rs1kWE0nEwKipGJT_XQtaXvNHCTETEKt5-qOYFcfw0A8Mh7Yru3UP0qyeNW8',
     alt: 'Misty Fern',
-    unlocked: true,
+    unlocked: false, // Changed from true
     requirement: 'Maintained a 7-day hydration streak',
     description:
       'A vibrant fern growing from a floating clod of moist earth with glistening water droplets.',
@@ -34,7 +34,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCYv5a8lwFQfXByT2hizHu8eKBIdpToWJYvdIuV6Te-7j7tIgpLW5RPLeE_JKju47MqTPGBLzxtJ3BU9D4kumItdbJkCDYHRG6EPs6JvX9iNRNJkKofmkOwl9hndoJO7XT8sr7W5fVgNTqLMDO2HLxlwtdsHv6bvS4kr3SkUpdPOuQeKeOq3TjNu8EN0vkp2-4WlX-bNdaAx1i8Oc1PGg9EkLgC5drBaPShX-5y2tzLbnQzXa33TjKO',
     alt: 'Aqua Lotus',
-    unlocked: true,
+    unlocked: false, // Changed from true
     requirement: 'Logged 3.0L or more in a single day',
     description:
       'A luminous crystal lotus floating on perfectly still water with blue refractions.',
@@ -46,7 +46,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBBuq5skUL-hIyY85TkS0QhXaDWUuyIdr_I8RYSF6ZMWJAu6V2wxsZ_klrfEv5GsNW90iUyscCxAreppAStKYU_iPSK7-z7l22hREO7-pVaM3APCZyhwzYCs-lgSevdtfN49c7WKg2h9SY3MI-RmP5lJ8-n6CdabaJa9YxcE_8gwUXSSvw4R7Nm9CD3Ym9OEsYM2rirJrXeG_xsK2ZglQAZPtqtOZj77uqjK--OHECHjnB_K1b_FTL7',
     alt: 'Dawn Sprout',
-    unlocked: true,
+    unlocked: false, // Changed from true
     requirement: 'Drank water before 9:00 AM on 30 separate mornings',
     description:
       'A delicate sapling reaching toward soft morning light with fresh dew drops.',
@@ -62,7 +62,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     requirement: 'Achieve 100% daily hydration goal for 30 consecutive days',
     description:
       'A majestic ancient oak with glowing cyan fluid veins nourishing deep subterranean roots.',
-    progressMl: 18000,
+    progressMl: 0,
     targetMl: 30000,
   },
   {
@@ -76,7 +76,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     requirement: 'Log a total cumulative intake of 100 Liters',
     description:
       'Crystalline bamboo stalks that split sunlight into vibrant prismatic spectrums.',
-    progressMl: 65000,
+    progressMl: 0,
     targetMl: 100000,
   },
   {
@@ -90,11 +90,10 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     requirement: 'Meet hydration goals on both Saturday and Sunday for 4 weekends',
     description:
       'Frost-textured desert succulents that hold pure moisture in geometric leaves.',
-    progressMl: 2,
+    progressMl: 0,
     targetMl: 4,
   },
 ];
-
 // --- Supabase Async API Queries ---
 
 /**
