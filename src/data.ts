@@ -234,3 +234,27 @@ export function formatVolume(ml: number, unit: 'ml' | 'oz'): string {
   }
   return `${Math.round(ml)}ml`;
 }
+export async function uploadAvatarImage(userId: string, file: File): Promise<string | null> {
+  try {
+    const fileExt = file.name.split('.').pop();
+    // Path: user_id/avatar-timestamp.ext to prevent browser caching stale images
+    const filePath = `${userId}/avatar-${Date.now()}.${fileExt}`;
+
+    // 1. Upload file to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    // 2. Get Public URL
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (err: any) {
+    console.error('Avatar upload failed:', err.message);
+    return null;
+  }
+}
