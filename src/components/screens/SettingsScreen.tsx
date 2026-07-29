@@ -26,7 +26,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   // Calculate base target
-  const calculatedMl = Math.round(weight * 35 * activityMultipliers[activity]);
+  const calculatedMl = Math.round(weight * 33 * activityMultipliers[activity]);
 
   const handleUpdateGoal = () => {
     onUpdateProfile({
