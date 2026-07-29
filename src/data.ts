@@ -1,6 +1,8 @@
 import { UserProfile, Friend, PlantChallenge, LogEntry } from './types';
 import { supabase } from './lib/supabase';
 
+// --- Static Image Assets ---
+
 export const LOGO_URL =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuD6r06pDFLM_y5Xqvtzm7If5HZljPbtklFlDHRXkd_QGWFOmNkQ8jRL3T0T2LmHaQ9DgddeEE6Ne_X5EU8u2XyZEYHsv4632e_zZiUXd093jyIywdcHnOk6LH4kD6cmgKjFvRnf2Pm0YOjNWxkVyeOo9TXSFOLigYmVwvHwANlirzu2ujuIXVjJGcBluxrvUZKSFnoe3oBdKct1TWoCDCVWdDY5GqAgzC6QVB7Qjw1ylrPIFOzSNExF';
 
@@ -9,6 +11,8 @@ export const USER_AVATAR_URL =
 
 export const FRIENDS_AVATAR_BASE =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuB0gggSCRYLzvwe_cSXax6MFxVvVMlZgIk1pZ-lX2MBovjawhZNXe6QLSV1-V2NCWTx3F1ORr8tggK0TEy5m_-BfPB9QW-k3hm2fok-SaaNuFbAhL9ZlVf9BbcdnJFJ4EUeaem0hSUlaZZtgcs8GhdfHWz_AERtAfe1WzZFAd6G2M_yHLy7CTJfHghpXMZJYdaAvvCyqGQfrTc-7X9Cp70EFVtgP1JwjqbgCHUXp9BTF1cDnoNy0g6-';
+
+// --- Water Forest Challenges Definition ---
 
 export const INITIAL_CHALLENGES: PlantChallenge[] = [
   {
@@ -91,8 +95,11 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
   },
 ];
 
-// --- Supabase Async Functions ---
+// --- Supabase Async API Queries ---
 
+/**
+ * Upload an avatar image file to Supabase Storage 'avatars' bucket
+ */
 export async function uploadAvatarImage(userId: string, file: File): Promise<string | null> {
   try {
     const fileExt = file.name.split('.').pop();
@@ -115,6 +122,9 @@ export async function uploadAvatarImage(userId: string, file: File): Promise<str
   }
 }
 
+/**
+ * Fetch the profile record for a given user
+ */
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
   if (error || !data) return null;
@@ -133,6 +143,9 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   };
 }
 
+/**
+ * Update user profile fields in Supabase
+ */
 export async function updateUserProfileInSupabase(
   userId: string,
   updates: Partial<UserProfile>
@@ -150,6 +163,9 @@ export async function updateUserProfileInSupabase(
   await supabase.from('profiles').update(payload).eq('id', userId);
 }
 
+/**
+ * Fetch water logs for a specific user ordered by created_at desc
+ */
 export async function fetchUserLogs(userId: string): Promise<LogEntry[]> {
   const { data, error } = await supabase
     .from('logs')
@@ -176,6 +192,9 @@ export async function fetchUserLogs(userId: string): Promise<LogEntry[]> {
   });
 }
 
+/**
+ * Insert a new water entry log for a user
+ */
 export async function addWaterLogToSupabase(
   userId: string,
   amountMl: number
@@ -199,6 +218,9 @@ export async function addWaterLogToSupabase(
   };
 }
 
+/**
+ * Fetch leaderboard ranking calculated across all registered user profiles
+ */
 export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Friend[]> {
   const { data: profiles } = await supabase.from('profiles').select('*');
   const { data: allLogs } = await supabase.from('logs').select('*');
@@ -233,6 +255,7 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
     };
   });
 
+  // Sort by highest intake
   friendsData.sort((a, b) => b.intakeLiters - a.intakeLiters);
   friendsData.forEach((f, idx) => {
     f.rank = idx + 1;
@@ -240,6 +263,43 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
 
   return friendsData;
 }
+
+/**
+ * Fetch user unlocked challenge IDs from database
+ */
+export async function fetchUserChallenges(userId: string): Promise<Record<string, boolean>> {
+  const { data, error } = await supabase
+    .from('user_challenges')
+    .select('challenge_id, unlocked')
+    .eq('user_id', userId);
+
+  if (error || !data) return {};
+
+  return data.reduce((acc, row) => {
+    acc[row.challenge_id] = row.unlocked;
+    return acc;
+  }, {} as Record<string, boolean>);
+}
+
+/**
+ * Unlock a specific challenge for a user in database
+ */
+export async function unlockChallengeInSupabase(
+  userId: string,
+  challengeId: string
+): Promise<void> {
+  await supabase.from('user_challenges').upsert(
+    {
+      user_id: userId,
+      challenge_id: challengeId,
+      unlocked: true,
+      unlocked_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id, challenge_id' }
+  );
+}
+
+// --- Utility Functions ---
 
 export function mlToOz(ml: number): number {
   return Number((ml * 0.033814).toFixed(1));
@@ -250,7 +310,7 @@ export function formatVolume(ml: number, unit: 'ml' | 'oz'): string {
     return `${mlToOz(ml)} oz`;
   }
   if (ml >= 1000) {
-    return `${(ml / 1000).toFixed(1)}L`;
+    return `${(ml / 1000).toFixed(2)}L`;
   }
   return `${Math.round(ml)}ml`;
 }
