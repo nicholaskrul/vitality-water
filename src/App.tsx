@@ -135,22 +135,18 @@ export default function App() {
           <TrendsScreen profile={profile} logs={logs} onViewAllLogs={() => setActiveTab('home')} />
         )}
         {activeTab === 'friends' && (
-  <FriendsScreen
-    friends={friends}
-    currentUserId={session?.user?.id}
-    onCheerFriend={(id) =>
-      setFriends((prev) =>
-        prev.map((f) => (f.id === id ? { ...f, cheered: !f.cheered } : f))
-      )
-    }
-    onNudgeFriend={(id) =>
-      setFriends((prev) => (f.id === id ? { ...f, nudged: !f.nudged } : f))
-    }
-    onDrinkNow={() => handleAddWater(250)}
-  />
-)}
+          <FriendsScreen
+            friends={friends}
+            currentUserId={session?.user?.id}
+            onCheerFriend={(id) =>
+              setFriends((prev) =>
+                prev.map((f) => (f.id === id ? { ...f, cheered: !f.cheered } : f))
+              )
+            }
             onNudgeFriend={(id) =>
-              setFriends((prev) => (f.id === id ? { ...f, nudged: !f.nudged } : f))
+              setFriends((prev) =>
+                prev.map((f) => (f.id === id ? { ...f, nudged: !f.nudged } : f))
+              )
             }
             onDrinkNow={() => handleAddWater(250)}
           />
