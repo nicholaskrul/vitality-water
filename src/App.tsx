@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, LogEntry, Friend, PlantChallenge, TabType } from './types';
+import { UserProfile, LogEntry, Friend, PlantChallenge, TabType, NotificationItem } from './types';
 import {
   fetchUserProfile,
   updateUserProfileInSupabase,
@@ -8,6 +8,9 @@ import {
   fetchFriendsLeaderboard,
   fetchUserChallenges,
   unlockChallengeInSupabase,
+  sendNotificationInSupabase,
+  fetchUserNotifications,
+  markNotificationAsRead,
   INITIAL_CHALLENGES,
 } from './data';
 import { supabase } from './lib/supabase';
@@ -30,6 +33,7 @@ export default function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [challenges, setChallenges] = useState<PlantChallenge[]>(INITIAL_CHALLENGES);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isCustomAddOpen, setIsCustomAddOpen] = useState(false);
 
   // 1. Listen for Supabase Authentication State
@@ -48,23 +52,24 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Fetch User Data when Logged In
+  // 2. Fetch User Data & Notifications when Logged In
   const loadUserData = async () => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
 
-    const [userProfile, userLogs, friendsList, savedChallenges] = await Promise.all([
+    const [userProfile, userLogs, friendsList, savedChallenges, userNotifs] = await Promise.all([
       fetchUserProfile(userId),
       fetchUserLogs(userId),
       fetchFriendsLeaderboard(userId),
       fetchUserChallenges(userId),
+      fetchUserNotifications(userId),
     ]);
 
     if (userProfile) setProfile(userProfile);
     setLogs(userLogs);
     setFriends(friendsList);
+    setNotifications(userNotifs);
 
-    // Merge saved Supabase challenge unlocks
     setChallenges((prev) =>
       prev.map((c) => ({
         ...c,
@@ -87,12 +92,10 @@ export default function App() {
     );
   }
 
-  // If not logged in, render Auth Screen
   if (!session) {
     return <AuthScreen />;
   }
 
-  // Fallback loading while profile loads
   if (!profile) {
     return (
       <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center">
@@ -101,7 +104,6 @@ export default function App() {
     );
   }
 
-  // Handle Adding Water
   const handleAddWater = async (amountMl: number) => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
@@ -109,13 +111,32 @@ export default function App() {
     const newLog = await addWaterLogToSupabase(userId, amountMl);
     if (newLog) {
       setLogs((prev) => [newLog, ...prev]);
-      // Refresh friends leaderboard live
       const updatedFriends = await fetchFriendsLeaderboard(userId);
       setFriends(updatedFriends);
     }
   };
 
-  // Handle Unlocking Challenges in Supabase
+  const handleCheerFriend = async (friendId: string) => {
+    if (!session?.user?.id || !profile) return;
+    setFriends((prev) =>
+      prev.map((f) => (f.id === friendId ? { ...f, cheered: !f.cheered } : f))
+    );
+    await sendNotificationInSupabase(session.user.id, friendId, profile.name, 'cheer');
+  };
+
+  const handleNudgeFriend = async (friendId: string) => {
+    if (!session?.user?.id || !profile) return;
+    setFriends((prev) =>
+      prev.map((f) => (f.id === friendId ? { ...f, nudged: !f.nudged } : f))
+    );
+    await sendNotificationInSupabase(session.user.id, friendId, profile.name, 'nudge');
+  };
+
+  const handleDismissNotification = async (notificationId: string) => {
+    await markNotificationAsRead(notificationId);
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+  };
+
   const handleUnlockChallenge = async (challengeId: string) => {
     if (!session?.user?.id) return;
     await unlockChallengeInSupabase(session.user.id, challengeId);
@@ -142,6 +163,36 @@ export default function App() {
         onAvatarClick={() => setActiveTab('settings')}
       />
 
+      {/* Received Notifications Popup Modal */}
+      {notifications.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] text-center space-y-4">
+            <div className="w-14 h-14 bg-[#00d2ff]/20 text-[#00677f] rounded-full flex items-center justify-center mx-auto">
+              <span className="material-symbols-outlined text-3xl">
+                {notifications[0].type === 'cheer' ? 'sports_score' : 'water_drop'}
+              </span>
+            </div>
+            <div>
+              <h3 className="font-['Montserrat'] text-lg font-bold text-[#111c2d]">
+                {notifications[0].type === 'cheer' ? '👏 Cheer Received!' : '💧 Hydration Nudge!'}
+              </h3>
+              <p className="text-xs text-[#3c494e] mt-2 leading-relaxed">
+                <strong>{notifications[0].senderName}</strong>{' '}
+                {notifications[0].type === 'cheer'
+                  ? 'cheered on your hydration progress!'
+                  : 'sent you a friendly nudge to drink some water!'}
+              </p>
+            </div>
+            <button
+              onClick={() => handleDismissNotification(notifications[0].id)}
+              className="w-full py-3 bg-[#00677f] text-white rounded-xl text-xs font-bold shadow-md hover:bg-[#00566a] transition-colors cursor-pointer"
+            >
+              {notifications[0].type === 'nudge' ? 'Drink Water Now' : 'Thanks!'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="pt-16 flex-1 flex flex-col items-center">
         {activeTab === 'home' && (
           <HomeScreen
@@ -158,16 +209,8 @@ export default function App() {
           <FriendsScreen
             friends={friends}
             currentUserId={session?.user?.id}
-            onCheerFriend={(id) =>
-              setFriends((prev) =>
-                prev.map((f) => (f.id === id ? { ...f, cheered: !f.cheered } : f))
-              )
-            }
-            onNudgeFriend={(id) =>
-              setFriends((prev) =>
-                prev.map((f) => (f.id === id ? { ...f, nudged: !f.nudged } : f))
-              )
-            }
+            onCheerFriend={handleCheerFriend}
+            onNudgeFriend={handleNudgeFriend}
           />
         )}
         {activeTab === 'challenges' && (
