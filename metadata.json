@@ -1,0 +1,6 @@
+{
+  "name": "Vitality Water",
+  "description": "A modern hydration tracking application with daily goals, quick add logging, trends analytics, water forest challenges, and friends leaderboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
