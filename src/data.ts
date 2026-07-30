@@ -366,3 +366,95 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
     .update({ is_read: true })
     .eq('id', notificationId);
 }
+import { FriendRequest } from './types';
+
+/**
+ * Send a friend request by email
+ */
+export async function sendFriendRequestByEmail(
+  requesterId: string,
+  receiverEmail: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = receiverEmail.toLowerCase().trim();
+
+  // Find user profile by email
+  const { data: receiverProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, name')
+    .ilike('email', cleanEmail)
+    .single();
+
+  if (profileError || !receiverProfile) {
+    return { success: false, message: 'No user found with that email address.' };
+  }
+
+  if (receiverProfile.id === requesterId) {
+    return { success: false, message: 'You cannot send a friend request to yourself!' };
+  }
+
+  // Insert friend request
+  const { error: insertError } = await supabase.from('friendships').insert([
+    {
+      requester_id: requesterId,
+      receiver_id: receiverProfile.id,
+      status: 'pending',
+    },
+  ]);
+
+  if (insertError) {
+    if (insertError.code === '23505') {
+      return { success: false, message: 'A friend request or friendship already exists.' };
+    }
+    return { success: false, message: insertError.message };
+  }
+
+  return { success: true, message: `Friend request sent to ${receiverProfile.name}!` };
+}
+
+/**
+ * Fetch pending incoming friend requests for a user
+ */
+export async function fetchPendingFriendRequests(userId: string): Promise<FriendRequest[]> {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select(`
+      id,
+      requester_id,
+      status,
+      profiles:requester_id (name, avatar_url)
+    `)
+    .eq('receiver_id', userId)
+    .eq('status', 'pending');
+
+  if (error || !data) return [];
+
+  return data.map((item: any) => ({
+    id: item.id,
+    requesterId: item.requester_id,
+    requesterName: item.profiles?.name || 'A user',
+    requesterAvatarUrl: item.profiles?.avatar_url,
+    status: item.status,
+  }));
+}
+
+/**
+ * Accept or decline a friend request
+ */
+export async function respondToFriendRequest(
+  friendshipId: string,
+  accept: boolean
+): Promise<boolean> {
+  if (accept) {
+    const { error } = await supabase
+      .from('friendships')
+      .update({ status: 'accepted' })
+      .eq('id', friendshipId);
+    return !error;
+  } else {
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .eq('id', friendshipId);
+    return !error;
+  }
+}
