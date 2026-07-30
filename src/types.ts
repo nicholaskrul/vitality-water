@@ -1,41 +1,32 @@
 export type TabType = 'home' | 'trends' | 'friends' | 'challenges' | 'settings';
 
-export type ActivityLevel = 'Low' | 'Med' | 'High';
-export type UnitType = 'ml' | 'oz';
+export interface UserProfile {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  dailyTargetMl: number;
+  preferredUnit: 'ml' | 'oz';
+  currentStreak: number;
+  longestStreak: number;
+}
 
 export interface LogEntry {
   id: string;
   amountMl: number;
-  timestamp: Date;
+  timestamp: string;
   formattedTime: string;
-  timeAgo: string;
-  dateStr: string; // e.g. "Today, Oct 18"
-}
-
-export interface UserProfile {
-  name: string;
-  status: string;
-  avatarUrl: string;
-  weightKg: number;
-  activityLevel: ActivityLevel;
-  dailyTargetMl: number;
-  preferredUnit: UnitType;
-  smartReminders: boolean;
-  currentStreak: number;
-  longestStreak: number;
 }
 
 export interface Friend {
   id: string;
   name: string;
   avatarUrl: string;
-  rank: number;
-  streakDays: number;
   intakeLiters: number;
   targetLiters: number;
   goalPercentage: number;
-  cheered: boolean;
-  nudged: boolean;
+  rank: number;
+  cheered?: boolean;
+  nudged?: boolean;
 }
 
 export interface PlantChallenge {
@@ -50,6 +41,7 @@ export interface PlantChallenge {
   progressMl?: number;
   targetMl?: number;
 }
+
 export interface NotificationItem {
   id: string;
   senderId: string;
@@ -58,8 +50,9 @@ export interface NotificationItem {
   createdAt: string;
   isRead: boolean;
 }
+
 export interface FriendRequest {
-  id: string; // Friendship row ID
+  id: string;
   requesterId: string;
   requesterName: string;
   requesterAvatarUrl?: string;
