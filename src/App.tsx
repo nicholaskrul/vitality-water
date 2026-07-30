@@ -56,13 +56,12 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Fetch User Data, Sync Email & Fetch Notifications when Logged In
+  // 2. Fetch Initial User Data & Sync Email
   const loadUserData = async () => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
     const userEmail = session.user.email;
 
-    // Auto-sync user email to profiles table so friends can search by email
     if (userEmail) {
       await updateUserProfileInSupabase(userId, { email: userEmail } as any);
     }
@@ -97,7 +96,69 @@ export default function App() {
     }
   }, [session]);
 
-  // 3. Smart Inactivity Reminder (3-hour check between 10 AM and 8 PM)
+  // 3. Supabase Realtime Listener for Friend Requests, Friendships & Notifications
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const userId = session.user.id;
+
+    // Realtime listener for Friend Requests & Friendship updates
+    const friendshipChannel = supabase
+      .channel('realtime_friendships')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friendships',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        async () => {
+          const updatedRequests = await fetchPendingFriendRequests(userId);
+          setPendingRequests(updatedRequests);
+          const updatedFriends = await fetchFriendsLeaderboard(userId);
+          setFriends(updatedFriends);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friendships',
+          filter: `requester_id=eq.${userId}`,
+        },
+        async () => {
+          const updatedFriends = await fetchFriendsLeaderboard(userId);
+          setFriends(updatedFriends);
+        }
+      )
+      .subscribe();
+
+    // Realtime listener for incoming Cheers & Nudges
+    const notificationChannel = supabase
+      .channel('realtime_notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_id=eq.${userId}`,
+        },
+        async () => {
+          const userNotifs = await fetchUserNotifications(userId);
+          setNotifications(userNotifs);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(friendshipChannel);
+      supabase.removeChannel(notificationChannel);
+    };
+  }, [session?.user?.id]);
+
+  // 4. Smart Inactivity Reminder (3-hour check between 10 AM and 8 PM)
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -107,9 +168,7 @@ export default function App() {
       const now = new Date();
       const currentHour = now.getHours();
 
-      // Only run between 10:00 AM (10) and 8:00 PM (20)
       if (currentHour < 10 || currentHour >= 20) return;
-
       if (!logs || logs.length === 0) return;
 
       const latestLogTime = new Date(logs[0].timestamp).getTime();
@@ -120,7 +179,6 @@ export default function App() {
         const lastNotified = localStorage.getItem('last_inactivity_notif_time');
         const nowTs = now.getTime();
 
-        // Don't re-notify if already alerted within the last 3 hours
         if (!lastNotified || nowTs - Number(lastNotified) >= threeHoursInMs) {
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('💧 Hydration Reminder', {
