@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, LogEntry, Friend, PlantChallenge, TabType, NotificationItem, FriendRequest } from './types';
+import {
+  UserProfile,
+  LogEntry,
+  Friend,
+  PlantChallenge,
+  TabType,
+  NotificationItem,
+  FriendRequest,
+  CandidateUser,
+} from './types';
 import {
   fetchUserProfile,
   updateUserProfileInSupabase,
@@ -12,6 +21,8 @@ import {
   fetchUserNotifications,
   markNotificationAsRead,
   sendFriendRequestByEmail,
+  searchUsersByNameOrEmail,
+  sendFriendRequestById,
   fetchPendingFriendRequests,
   respondToFriendRequest,
   INITIAL_CHALLENGES,
@@ -230,9 +241,14 @@ export default function App() {
     }
   };
 
-  const handleSendInvite = async (email: string) => {
+  const handleSearchUsers = async (query: string): Promise<CandidateUser[]> => {
+    if (!session?.user?.id) return [];
+    return await searchUsersByNameOrEmail(query, session.user.id);
+  };
+
+  const handleSendRequestById = async (receiverId: string) => {
     if (!session?.user?.id) return { success: false, message: 'Not authenticated' };
-    return await sendFriendRequestByEmail(session.user.id, email);
+    return await sendFriendRequestById(session.user.id, receiverId);
   };
 
   const handleRespondRequest = async (requestId: string, accept: boolean) => {
@@ -340,7 +356,8 @@ export default function App() {
             currentUserId={session?.user?.id}
             onCheerFriend={handleCheerFriend}
             onNudgeFriend={handleNudgeFriend}
-            onSendInvite={handleSendInvite}
+            onSearchUsers={handleSearchUsers}
+            onSendRequestById={handleSendRequestById}
             onRespondRequest={handleRespondRequest}
           />
         )}
