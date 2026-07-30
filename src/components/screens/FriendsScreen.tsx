@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Friend, FriendRequest } from '../../types';
+import { Friend, FriendRequest, CandidateUser } from '../../types';
 
 interface FriendsScreenProps {
   friends?: Friend[];
@@ -7,7 +7,8 @@ interface FriendsScreenProps {
   currentUserId?: string;
   onCheerFriend?: (id: string) => void;
   onNudgeFriend?: (id: string) => void;
-  onSendInvite?: (email: string) => Promise<{ success: boolean; message: string }>;
+  onSearchUsers?: (query: string) => Promise<CandidateUser[]>;
+  onSendRequestById?: (receiverId: string) => Promise<{ success: boolean; message: string }>;
   onRespondRequest?: (requestId: string, accept: boolean) => void;
 }
 
@@ -17,39 +18,35 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
   currentUserId,
   onCheerFriend,
   onNudgeFriend,
-  onSendInvite,
+  onSearchUsers,
+  onSendRequestById,
   onRespondRequest,
 }) => {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [emailInput, setEmailInput] = useState('');
-  const [inviteStatus, setInviteStatus] = useState<{ success?: boolean; message?: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchResults, setSearchResults] = useState<CandidateUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [sentMap, setSentMap] = useState<Record<string, boolean>>({});
 
-  // Fallback guards to prevent render crashes
   const safeFriends = Array.isArray(friends) ? friends : [];
   const safeRequests = Array.isArray(pendingRequests) ? pendingRequests : [];
   const topThree = safeFriends.slice(0, 3);
 
-  const handleInviteSubmit = async (e: React.FormEvent) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput.trim() || !onSendInvite) return;
+    if (!searchInput.trim() || !onSearchUsers) return;
 
-    setLoading(true);
-    setInviteStatus(null);
-    try {
-      const result = await onSendInvite(emailInput);
-      setInviteStatus(result);
-      if (result.success) {
-        setEmailInput('');
-        setTimeout(() => {
-          setIsInviteOpen(false);
-          setInviteStatus(null);
-        }, 2000);
-      }
-    } catch (err: any) {
-      setInviteStatus({ success: false, message: 'An error occurred while sending the request.' });
-    } finally {
-      setLoading(false);
+    setIsSearching(true);
+    const results = await onSearchUsers(searchInput);
+    setSearchResults(results);
+    setIsSearching(false);
+  };
+
+  const handleSendRequest = async (user: CandidateUser) => {
+    if (!onSendRequestById) return;
+    const res = await onSendRequestById(user.id);
+    if (res.success) {
+      setSentMap((prev) => ({ ...prev, [user.id]: true }));
     }
   };
 
@@ -66,11 +63,15 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
           </h2>
         </div>
         <button
-          onClick={() => setIsInviteOpen(true)}
+          onClick={() => {
+            setIsInviteOpen(true);
+            setSearchInput('');
+            setSearchResults([]);
+          }}
           className="bg-[#00677f] text-white px-3.5 py-2 rounded-2xl font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-[#00566a] transition-all cursor-pointer"
         >
           <span className="material-symbols-outlined text-base">person_add</span>
-          Add Friend
+          Find Friends
         </button>
       </div>
 
@@ -165,7 +166,7 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
 
         {safeFriends.length <= 1 ? (
           <div className="bg-[#f0f3ff] rounded-2xl p-6 text-center text-xs text-[#6c797f] border border-white/60">
-            You don't have any added friends yet. Tap <strong>+ Add Friend</strong> above to invite your buddies!
+            You don't have any added friends yet. Tap <strong>Find Friends</strong> above to search by name!
           </div>
         ) : (
           <div className="space-y-2">
@@ -233,54 +234,94 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
         )}
       </div>
 
-      {/* Invite Modal */}
+      {/* Find Friends Search Modal */}
       {isInviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] text-center space-y-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-[#e7eeff] space-y-4 max-h-[85vh] flex flex-col">
             <button
               onClick={() => setIsInviteOpen(false)}
-              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-[#f0f3ff] text-[#3c494e] flex items-center justify-center font-bold text-xs"
+              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-[#f0f3ff] text-[#3c494e] flex items-center justify-center font-bold text-xs cursor-pointer"
             >
               ✕
             </button>
 
-            <div className="w-12 h-12 bg-[#00d2ff]/20 text-[#00677f] rounded-full flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-2xl">person_add</span>
-            </div>
-
             <div>
               <h3 className="font-['Montserrat'] text-lg font-bold text-[#111c2d]">
-                Invite a Friend
+                Find Friends
               </h3>
               <p className="text-xs text-[#3c494e] mt-1">
-                Enter your friend's registered email address to send an invitation.
+                Search by display name or email address.
               </p>
             </div>
 
-            <form onSubmit={handleInviteSubmit} className="space-y-3 pt-2">
+            <form onSubmit={handleSearchSubmit} className="flex gap-2">
               <input
-                type="email"
+                type="text"
                 required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="friend@example.com"
-                className="w-full bg-[#f0f3ff] border border-[#e7eeff] rounded-xl px-4 py-2.5 text-xs font-semibold text-[#111c2d] focus:outline-none focus:border-[#00677f]"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search name or email..."
+                className="flex-1 bg-[#f0f3ff] border border-[#e7eeff] rounded-xl px-4 py-2.5 text-xs font-semibold text-[#111c2d] focus:outline-none focus:border-[#00677f]"
               />
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="px-4 py-2.5 bg-[#00677f] text-white rounded-xl text-xs font-bold hover:bg-[#00566a] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isSearching ? '...' : 'Search'}
+              </button>
+            </form>
 
-              {inviteStatus && (
-                <p className={`text-xs font-bold ${inviteStatus.success ? 'text-green-600' : 'text-red-500'}`}>
-                  {inviteStatus.message}
+            {/* Results List */}
+            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+              {searchResults.length === 0 && searchInput && !isSearching && (
+                <p className="text-center text-xs text-[#6c797f] py-4">
+                  No matching users found.
                 </p>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-[#00677f] text-white rounded-xl text-xs font-bold hover:bg-[#00566a] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {loading ? 'Sending...' : 'Send Friend Request'}
-              </button>
-            </form>
+              {searchResults.map((user) => {
+                const isSent = sentMap[user.id] || user.isPending;
+                const isAlreadyFriend = user.isFriend;
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 bg-[#f0f3ff] rounded-2xl border border-white"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-white border border-[#e7eeff]">
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span className="font-['Montserrat'] text-xs font-bold text-[#111c2d]">
+                        {user.name}
+                      </span>
+                    </div>
+
+                    {isAlreadyFriend ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                        Friends
+                      </span>
+                    ) : isSent ? (
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg">
+                        Pending
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleSendRequest(user)}
+                        className="bg-[#00677f] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#00566a] transition-all cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
