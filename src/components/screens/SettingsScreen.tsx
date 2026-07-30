@@ -12,6 +12,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onUpdateProfile,
 }) => {
   const [name, setName] = useState(profile.name || '');
+  const [weightKg, setWeightKg] = useState<string>('');
   const [targetInput, setTargetInput] = useState(
     profile.preferredUnit === 'oz'
       ? Math.round(mlToOz(profile.dailyTargetMl || 2500)).toString()
@@ -21,9 +22,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const unit = profile.preferredUnit || 'ml';
 
-  // Handle saving daily water target
+  // Calculate recommended intake based on 0.032L (32ml) per kg
+  const weightNum = parseFloat(weightKg);
+  const recommendedMl = !isNaN(weightNum) && weightNum > 0 ? Math.round(weightNum * 32) : null;
+
   const handleSaveTarget = (newTargetMl: number) => {
     onUpdateProfile({ dailyTargetMl: newTargetMl });
+    setTargetInput(
+      unit === 'oz'
+        ? Math.round(mlToOz(newTargetMl)).toString()
+        : newTargetMl.toString()
+    );
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2500);
   };
@@ -33,15 +42,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const val = parseFloat(targetInput);
     if (isNaN(val) || val <= 0) return;
 
-    // Convert to mL if the user is in 'oz' mode
     const targetInMl = unit === 'oz' ? Math.round(val / 0.033814) : Math.round(val);
     handleSaveTarget(targetInMl);
   };
 
   const handlePresetSelect = (presetMl: number) => {
-    const displayVal = unit === 'oz' ? Math.round(mlToOz(presetMl)) : presetMl;
-    setTargetInput(displayVal.toString());
     handleSaveTarget(presetMl);
+  };
+
+  const handleApplyRecommended = () => {
+    if (recommendedMl) {
+      handleSaveTarget(recommendedMl);
+    }
   };
 
   return (
@@ -63,7 +75,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </h2>
       </div>
 
-      {/* 1. Daily Hydration Target Customization Card */}
+      {/* 1. Daily Hydration Target Card */}
       <section className="bg-[#e7eeff] rounded-3xl p-6 shadow-sm border border-white/60 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -129,7 +141,57 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </form>
       </section>
 
-      {/* 2. Unit Preference Toggle */}
+      {/* 2. Weight-Based Recommendation Calculator */}
+      <section className="bg-white rounded-3xl p-6 shadow-sm border border-[#e7eeff] space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[#00677f]">monitor_weight</span>
+          <h3 className="font-['Montserrat'] text-sm font-bold text-[#111c2d]">
+            Weight-Based Recommendation
+          </h3>
+        </div>
+
+        <p className="text-xs text-[#6c797f]">
+          Calculate your suggested daily water intake based on <strong>0.032L (32ml) per kg</strong> of body weight.
+        </p>
+
+        <div className="space-y-3">
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              min="20"
+              max="300"
+              step="0.5"
+              value={weightKg}
+              onChange={(e) => setWeightKg(e.target.value)}
+              placeholder="Enter weight in kg (e.g. 70)"
+              className="flex-1 bg-[#f0f3ff] border border-[#e7eeff] rounded-xl px-4 py-2.5 text-xs font-semibold text-[#111c2d] focus:outline-none focus:border-[#00677f]"
+            />
+            <span className="text-xs font-bold text-[#3c494e]">kg</span>
+          </div>
+
+          {recommendedMl && (
+            <div className="bg-[#e7eeff]/60 border border-[#00677f]/20 rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-[#3c494e] uppercase tracking-wider">
+                  Recommended Goal
+                </p>
+                <p className="font-['Montserrat'] text-base font-extrabold text-[#00677f]">
+                  {formatVolume(recommendedMl, unit)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleApplyRecommended}
+                className="px-4 py-2 bg-[#00677f] text-white rounded-xl text-xs font-bold shadow-sm hover:bg-[#00566a] transition-colors cursor-pointer"
+              >
+                Use Goal
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 3. Unit Preference Toggle */}
       <section className="bg-white rounded-2xl p-4 shadow-sm border border-[#e7eeff] flex items-center justify-between">
         <div>
           <p className="font-['Montserrat'] text-xs font-bold text-[#111c2d]">
@@ -161,7 +223,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
       </section>
 
-      {/* 3. Account Name Settings */}
+      {/* 4. Account Name Settings */}
       <section className="bg-white rounded-2xl p-4 shadow-sm border border-[#e7eeff] space-y-3">
         <p className="font-['Montserrat'] text-xs font-bold text-[#111c2d]">
           Display Name
