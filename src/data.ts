@@ -311,21 +311,21 @@ export async function sendFriendRequestByEmail(
 ): Promise<{ success: boolean; message: string }> {
   const cleanEmail = receiverEmail.toLowerCase().trim();
 
-  // Find user profile by email cleanly using maybeSingle()
+  // Search profiles table for matching email
   const { data: receiverProfile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, name')
+    .select('id, name, email')
     .ilike('email', cleanEmail)
     .maybeSingle();
 
   if (profileError) {
-    return { success: false, message: profileError.message };
+    return { success: false, message: `Database error: ${profileError.message}` };
   }
 
   if (!receiverProfile) {
     return {
       success: false,
-      message: 'No user found with that email address. Ask your friend to log into the app once first!',
+      message: 'No user found with that email address. Check for typos or ensure they signed up!',
     };
   }
 
@@ -333,7 +333,7 @@ export async function sendFriendRequestByEmail(
     return { success: false, message: 'You cannot send a friend request to yourself!' };
   }
 
-  // Insert friend request
+  // Insert friend request row
   const { error: insertError } = await supabase.from('friendships').insert([
     {
       requester_id: requesterId,
@@ -344,7 +344,7 @@ export async function sendFriendRequestByEmail(
 
   if (insertError) {
     if (insertError.code === '23505') {
-      return { success: false, message: 'A friend request or friendship already exists.' };
+      return { success: false, message: 'A friend request or friendship already exists with this user.' };
     }
     return { success: false, message: insertError.message };
   }
