@@ -58,3 +58,10 @@ export interface NotificationItem {
   createdAt: string;
   isRead: boolean;
 }
+export interface FriendRequest {
+  id: string; // Friendship row ID
+  requesterId: string;
+  requesterName: string;
+  requesterAvatarUrl?: string;
+  status: 'pending' | 'accepted';
+}
