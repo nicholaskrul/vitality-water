@@ -146,11 +146,11 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 }
 
 /**
- * Update User Profile in Supabase
+ * Update User Profile in Supabase (includes email sync support)
  */
 export async function updateUserProfileInSupabase(
   userId: string,
-  updated: Partial<UserProfile>
+  updated: Partial<UserProfile> & { email?: string }
 ): Promise<void> {
   const payload: any = {};
   if (updated.name !== undefined) payload.name = updated.name;
@@ -159,6 +159,7 @@ export async function updateUserProfileInSupabase(
   if (updated.preferredUnit !== undefined) payload.preferred_unit = updated.preferredUnit;
   if (updated.currentStreak !== undefined) payload.current_streak = updated.currentStreak;
   if (updated.longestStreak !== undefined) payload.longest_streak = updated.longestStreak;
+  if (updated.email !== undefined) payload.email = updated.email;
 
   await supabase.from('profiles').update(payload).eq('id', userId);
 }
@@ -310,15 +311,22 @@ export async function sendFriendRequestByEmail(
 ): Promise<{ success: boolean; message: string }> {
   const cleanEmail = receiverEmail.toLowerCase().trim();
 
-  // Find user profile by email
+  // Find user profile by email cleanly using maybeSingle()
   const { data: receiverProfile, error: profileError } = await supabase
     .from('profiles')
     .select('id, name')
     .ilike('email', cleanEmail)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !receiverProfile) {
-    return { success: false, message: 'No user found with that email address.' };
+  if (profileError) {
+    return { success: false, message: profileError.message };
+  }
+
+  if (!receiverProfile) {
+    return {
+      success: false,
+      message: 'No user found with that email address. Ask your friend to log into the app once first!',
+    };
   }
 
   if (receiverProfile.id === requesterId) {
@@ -341,7 +349,7 @@ export async function sendFriendRequestByEmail(
     return { success: false, message: insertError.message };
   }
 
-  return { success: true, message: `Friend request sent to ${receiverProfile.name}!` };
+  return { success: true, message: `Friend request sent to ${receiverProfile.name || 'user'}!` };
 }
 
 /**
