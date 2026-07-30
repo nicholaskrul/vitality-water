@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, LogEntry, Friend, PlantChallenge, TabType, NotificationItem } from './types';
+import { UserProfile, LogEntry, Friend, PlantChallenge, TabType, NotificationItem, FriendRequest } from './types';
 import {
   fetchUserProfile,
   updateUserProfileInSupabase,
@@ -11,6 +11,9 @@ import {
   sendNotificationInSupabase,
   fetchUserNotifications,
   markNotificationAsRead,
+  sendFriendRequestByEmail,
+  fetchPendingFriendRequests,
+  respondToFriendRequest,
   INITIAL_CHALLENGES,
 } from './data';
 import { supabase } from './lib/supabase';
@@ -32,6 +35,7 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [challenges, setChallenges] = useState<PlantChallenge[]>(INITIAL_CHALLENGES);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isCustomAddOpen, setIsCustomAddOpen] = useState(false);
@@ -52,23 +56,32 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Fetch User Data & Notifications when Logged In
+  // 2. Fetch User Data, Sync Email & Fetch Notifications when Logged In
   const loadUserData = async () => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
+    const userEmail = session.user.email;
 
-    const [userProfile, userLogs, friendsList, savedChallenges, userNotifs] = await Promise.all([
-      fetchUserProfile(userId),
-      fetchUserLogs(userId),
-      fetchFriendsLeaderboard(userId),
-      fetchUserChallenges(userId),
-      fetchUserNotifications(userId),
-    ]);
+    // Auto-sync user email to profiles table so friends can search by email
+    if (userEmail) {
+      await updateUserProfileInSupabase(userId, { email: userEmail } as any);
+    }
+
+    const [userProfile, userLogs, friendsList, savedChallenges, userNotifs, requests] =
+      await Promise.all([
+        fetchUserProfile(userId),
+        fetchUserLogs(userId),
+        fetchFriendsLeaderboard(userId),
+        fetchUserChallenges(userId),
+        fetchUserNotifications(userId),
+        fetchPendingFriendRequests(userId),
+      ]);
 
     if (userProfile) setProfile(userProfile);
     setLogs(userLogs);
     setFriends(friendsList);
     setNotifications(userNotifs);
+    setPendingRequests(requests);
 
     setChallenges((prev) =>
       prev.map((c) => ({
@@ -86,7 +99,6 @@ export default function App() {
 
   // 3. Smart Inactivity Reminder (3-hour check between 10 AM and 8 PM)
   useEffect(() => {
-    // Request permission if default
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -108,7 +120,7 @@ export default function App() {
         const lastNotified = localStorage.getItem('last_inactivity_notif_time');
         const nowTs = now.getTime();
 
-        // Throttle: don't notify if already alerted within the last 3 hours
+        // Don't re-notify if already alerted within the last 3 hours
         if (!lastNotified || nowTs - Number(lastNotified) >= threeHoursInMs) {
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('💧 Hydration Reminder', {
@@ -156,6 +168,20 @@ export default function App() {
     if (newLog) {
       setLogs((prev) => [newLog, ...prev]);
       const updatedFriends = await fetchFriendsLeaderboard(userId);
+      setFriends(updatedFriends);
+    }
+  };
+
+  const handleSendInvite = async (email: string) => {
+    if (!session?.user?.id) return { success: false, message: 'Not authenticated' };
+    return await sendFriendRequestByEmail(session.user.id, email);
+  };
+
+  const handleRespondRequest = async (requestId: string, accept: boolean) => {
+    await respondToFriendRequest(requestId, accept);
+    setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+    if (accept && session?.user?.id) {
+      const updatedFriends = await fetchFriendsLeaderboard(session.user.id);
       setFriends(updatedFriends);
     }
   };
@@ -252,9 +278,12 @@ export default function App() {
         {activeTab === 'friends' && (
           <FriendsScreen
             friends={friends}
+            pendingRequests={pendingRequests}
             currentUserId={session?.user?.id}
             onCheerFriend={handleCheerFriend}
             onNudgeFriend={handleNudgeFriend}
+            onSendInvite={handleSendInvite}
+            onRespondRequest={handleRespondRequest}
           />
         )}
         {activeTab === 'challenges' && (
