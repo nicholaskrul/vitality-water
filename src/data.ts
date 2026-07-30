@@ -6,6 +6,7 @@ import {
   PlantChallenge,
   NotificationItem,
   FriendRequest,
+  CandidateUser,
 } from './types';
 
 // ==========================================
@@ -146,7 +147,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 }
 
 /**
- * Update User Profile in Supabase (includes email sync support)
+ * Update User Profile in Supabase
  */
 export async function updateUserProfileInSupabase(
   userId: string,
@@ -311,7 +312,6 @@ export async function sendFriendRequestByEmail(
 ): Promise<{ success: boolean; message: string }> {
   const cleanEmail = receiverEmail.toLowerCase().trim();
 
-  // Search profiles table for matching email
   const { data: receiverProfile, error: profileError } = await supabase
     .from('profiles')
     .select('id, name, email')
@@ -333,7 +333,6 @@ export async function sendFriendRequestByEmail(
     return { success: false, message: 'You cannot send a friend request to yourself!' };
   }
 
-  // Insert friend request row
   const { error: insertError } = await supabase.from('friendships').insert([
     {
       requester_id: requesterId,
@@ -350,6 +349,73 @@ export async function sendFriendRequestByEmail(
   }
 
   return { success: true, message: `Friend request sent to ${receiverProfile.name || 'user'}!` };
+}
+
+/**
+ * Search users by display name or email
+ */
+export async function searchUsersByNameOrEmail(
+  searchQuery: string,
+  currentUserId: string
+): Promise<CandidateUser[]> {
+  const cleanQuery = searchQuery.trim();
+  if (!cleanQuery) return [];
+
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, name, avatar_url')
+    .or(`name.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
+    .neq('id', currentUserId)
+    .limit(10);
+
+  if (error || !profiles) return [];
+
+  const { data: friendships } = await supabase
+    .from('friendships')
+    .select('requester_id, receiver_id, status')
+    .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+  const friendshipMap = new Map<string, string>();
+  friendships?.forEach((f) => {
+    const otherId = f.requester_id === currentUserId ? f.receiver_id : f.requester_id;
+    friendshipMap.set(otherId, f.status);
+  });
+
+  return profiles.map((p) => {
+    const status = friendshipMap.get(p.id);
+    return {
+      id: p.id,
+      name: p.name || 'Hydration Hero',
+      avatarUrl: p.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      isFriend: status === 'accepted',
+      isPending: status === 'pending',
+    };
+  });
+}
+
+/**
+ * Send a friend request directly by user ID
+ */
+export async function sendFriendRequestById(
+  requesterId: string,
+  receiverId: string
+): Promise<{ success: boolean; message: string }> {
+  const { error: insertError } = await supabase.from('friendships').insert([
+    {
+      requester_id: requesterId,
+      receiver_id: receiverId,
+      status: 'pending',
+    },
+  ]);
+
+  if (insertError) {
+    if (insertError.code === '23505') {
+      return { success: false, message: 'Request already pending.' };
+    }
+    return { success: false, message: insertError.message };
+  }
+
+  return { success: true, message: 'Friend request sent!' };
 }
 
 /**
@@ -404,7 +470,6 @@ export async function respondToFriendRequest(
  * Fetch Friends Leaderboard (Only Accepted Friends + Current User)
  */
 export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Friend[]> {
-  // 1. Fetch accepted friendships involving currentUserId
   const { data: friendships } = await supabase
     .from('friendships')
     .select('requester_id, receiver_id')
@@ -420,7 +485,6 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
     });
   }
 
-  // 2. Fetch profiles for accepted friends + self
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
@@ -428,7 +492,6 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
 
   if (!profiles) return [];
 
-  // 3. Fetch today's logs for these users
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -438,13 +501,11 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
     .gte('created_at', todayStart.toISOString())
     .in('user_id', Array.from(friendUserIds));
 
-  // Sum intakes per user
   const intakeMap: Record<string, number> = {};
   logs?.forEach((log) => {
     intakeMap[log.user_id] = (intakeMap[log.user_id] || 0) + log.amount_ml;
   });
 
-  // Construct Leaderboard items
   const leaderboard: Friend[] = profiles.map((p) => {
     const totalMl = intakeMap[p.id] || 0;
     const targetMl = p.daily_target_ml || 2500;
@@ -458,77 +519,7 @@ export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Fr
       rank: 1,
     };
   });
-import { CandidateUser } from './types';
 
-/**
- * Search users by name or email
- */
-export async function searchUsersByNameOrEmail(
-  searchQuery: string,
-  currentUserId: string
-): Promise<CandidateUser[]> {
-  const cleanQuery = searchQuery.trim();
-  if (!cleanQuery) return [];
-
-  // 1. Search profiles matching name or email (excluding current user)
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('id, name, avatar_url')
-    .or(`name.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
-    .neq('id', currentUserId)
-    .limit(10);
-
-  if (error || !profiles) return [];
-
-  // 2. Fetch existing friendships to check status
-  const { data: friendships } = await supabase
-    .from('friendships')
-    .select('requester_id, receiver_id, status')
-    .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-
-  const friendshipMap = new Map<string, string>();
-  friendships?.forEach((f) => {
-    const otherId = f.requester_id === currentUserId ? f.receiver_id : f.requester_id;
-    friendshipMap.set(otherId, f.status);
-  });
-
-  return profiles.map((p) => {
-    const status = friendshipMap.get(p.id);
-    return {
-      id: p.id,
-      name: p.name || 'Hydration Hero',
-      avatarUrl: p.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-      isFriend: status === 'accepted',
-      isPending: status === 'pending',
-    };
-  });
-}
-
-/**
- * Send a friend request directly by user ID
- */
-export async function sendFriendRequestById(
-  requesterId: string,
-  receiverId: string
-): Promise<{ success: boolean; message: string }> {
-  const { error: insertError } = await supabase.from('friendships').insert([
-    {
-      requester_id: requesterId,
-      receiver_id: receiverId,
-      status: 'pending',
-    },
-  ]);
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return { success: false, message: 'Request already pending.' };
-    }
-    return { success: false, message: insertError.message };
-  }
-
-  return { success: true, message: 'Friend request sent!' };
-}
-  // Sort by volume descending and assign ranks
   leaderboard.sort((a, b) => b.intakeLiters - a.intakeLiters);
   return leaderboard.map((item, index) => ({ ...item, rank: index + 1 }));
 }
