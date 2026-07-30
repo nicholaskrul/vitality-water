@@ -58,6 +58,7 @@ export interface FriendRequest {
   requesterAvatarUrl?: string;
   status: 'pending' | 'accepted';
 }
+
 export interface CandidateUser {
   id: string;
   name: string;
