@@ -1,18 +1,35 @@
-import { UserProfile, Friend, PlantChallenge, LogEntry } from './types';
 import { supabase } from './lib/supabase';
+import {
+  UserProfile,
+  LogEntry,
+  Friend,
+  PlantChallenge,
+  NotificationItem,
+  FriendRequest,
+} from './types';
 
-// --- Static Image Assets ---
+// ==========================================
+// UNIT CONVERSION HELPERS
+// ==========================================
 
-export const LOGO_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuD6r06pDFLM_y5Xqvtzm7If5HZljPbtklFlDHRXkd_QGWFOmNkQ8jRL3T0T2LmHaQ9DgddeEE6Ne_X5EU8u2XyZEYHsv4632e_zZiUXd093jyIywdcHnOk6LH4kD6cmgKjFvRnf2Pm0YOjNWxkVyeOo9TXSFOLigYmVwvHwANlirzu2ujuIXVjJGcBluxrvUZKSFnoe3oBdKct1TWoCDCVWdDY5GqAgzC6QVB7Qjw1ylrPIFOzSNExF';
+export function mlToOz(ml: number): number {
+  return ml * 0.033814;
+}
 
-export const USER_AVATAR_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuD30H7AetrI1yfWFVX2Z-ZQRBQlaCsXuOASiptnLOOnyzz_WdpEdRqUy-lojVSxIdUbTU89lb5NqmDxbYIDk6HZDa-zRWAJ2YcSMk3fyaCuZ9TqNGCu7KE7XLELByfzn86BvlPOd9AL-IDJpSOfebeXJQwNu6P91k4YldviHkvRpsXC2ZE68NRpRvrAjNIXR-ibGqb_WmjF9kf5IuRXG5XUh79PMxBfhugLYCH5jNUi-6ZF9HvQMJel';
+export function ozToMl(oz: number): number {
+  return oz / 0.033814;
+}
 
-export const FRIENDS_AVATAR_BASE =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuB0gggSCRYLzvwe_cSXax6MFxVvVMlZgIk1pZ-lX2MBovjawhZNXe6QLSV1-V2NCWTx3F1ORr8tggK0TEy5m_-BfPB9QW-k3hm2fok-SaaNuFbAhL9ZlVf9BbcdnJFJ4EUeaem0hSUlaZZtgcs8GhdfHWz_AERtAfe1WzZFAd6G2M_yHLy7CTJfHghpXMZJYdaAvvCyqGQfrTc-7X9Cp70EFVtgP1JwjqbgCHUXp9BTF1cDnoNy0g6-';
+export function formatVolume(amountMl: number, unit: 'ml' | 'oz' = 'ml'): string {
+  if (unit === 'oz') {
+    return `${Math.round(mlToOz(amountMl))} oz`;
+  }
+  return `${amountMl} ml`;
+}
 
-// --- Water Forest Challenges Definition ---
+// ==========================================
+// DEFAULT CHALLENGES DATA
+// ==========================================
 
 export const INITIAL_CHALLENGES: PlantChallenge[] = [
   {
@@ -22,7 +39,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBXrUIuM9xGwmPwQpWX88lYdmt563xRyhmVkwk8aFMQNQA2hUXrpGyG4hmsJ2PO_97M2eOqugcQvXcfW7lrfeVCGsD1amSdJFZ-SdiFvKFAXbCq9M3aXS4zq9mpRcFuRCVL-JZZUZQ_oxNWi-rjDzyQ_6Ik58qWrgPd0tLmaU5rpcf8IBwnhKGW5y4-Rs1kWE0nEwKipGJT_XQtaXvNHCTETEKt5-qOYFcfw0A8Mh7Yru3UP0qyeNW8',
     alt: 'Misty Fern',
-    unlocked: false, // Changed from true
+    unlocked: false,
     requirement: 'Maintained a 7-day hydration streak',
     description:
       'A vibrant fern growing from a floating clod of moist earth with glistening water droplets.',
@@ -34,7 +51,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCYv5a8lwFQfXByT2hizHu8eKBIdpToWJYvdIuV6Te-7j7tIgpLW5RPLeE_JKju47MqTPGBLzxtJ3BU9D4kumItdbJkCDYHRG6EPs6JvX9iNRNJkKofmkOwl9hndoJO7XT8sr7W5fVgNTqLMDO2HLxlwtdsHv6bvS4kr3SkUpdPOuQeKeOq3TjNu8EN0vkp2-4WlX-bNdaAx1i8Oc1PGg9EkLgC5drBaPShX-5y2tzLbnQzXa33TjKO',
     alt: 'Aqua Lotus',
-    unlocked: false, // Changed from true
+    unlocked: false,
     requirement: 'Logged 3.0L or more in a single day',
     description:
       'A luminous crystal lotus floating on perfectly still water with blue refractions.',
@@ -46,7 +63,7 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     imgUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBBuq5skUL-hIyY85TkS0QhXaDWUuyIdr_I8RYSF6ZMWJAu6V2wxsZ_klrfEv5GsNW90iUyscCxAreppAStKYU_iPSK7-z7l22hREO7-pVaM3APCZyhwzYCs-lgSevdtfN49c7WKg2h9SY3MI-RmP5lJ8-n6CdabaJa9YxcE_8gwUXSSvw4R7Nm9CD3Ym9OEsYM2rirJrXeG_xsK2ZglQAZPtqtOZj77uqjK--OHECHjnB_K1b_FTL7',
     alt: 'Dawn Sprout',
-    unlocked: false, // Changed from true
+    unlocked: false,
     requirement: 'Drank water before 9:00 AM on 30 separate mornings',
     description:
       'A delicate sapling reaching toward soft morning light with fresh dew drops.',
@@ -94,76 +111,54 @@ export const INITIAL_CHALLENGES: PlantChallenge[] = [
     targetMl: 4,
   },
 ];
-// --- Supabase Async API Queries ---
+
+// ==========================================
+// SUPABASE DATA FETCHING & MUTATION FUNCTIONS
+// ==========================================
 
 /**
- * Upload an avatar image file to Supabase Storage 'avatars' bucket
- */
-export async function uploadAvatarImage(userId: string, file: File): Promise<string | null> {
-  try {
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${userId}/avatar-${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (err: any) {
-    console.error('Avatar upload failed:', err.message);
-    return null;
-  }
-}
-
-/**
- * Fetch the profile record for a given user
+ * Fetch User Profile from Supabase
  */
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
   if (error || !data) return null;
 
   return {
-    name: data.name,
-    status: data.status,
-    avatarUrl: data.avatar_url,
-    weightKg: Number(data.weight_kg),
-    activityLevel: data.activity_level,
-    dailyTargetMl: data.daily_target_ml,
-    preferredUnit: data.preferred_unit,
-    smartReminders: data.smart_reminders,
-    currentStreak: data.current_streak,
-    longestStreak: data.longest_streak,
+    id: data.id,
+    name: data.name || 'Hydration Hero',
+    avatarUrl: data.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+    dailyTargetMl: data.daily_target_ml || 2500,
+    preferredUnit: data.preferred_unit || 'ml',
+    currentStreak: data.current_streak || 1,
+    longestStreak: data.longest_streak || 1,
   };
 }
 
 /**
- * Update user profile fields in Supabase
+ * Update User Profile in Supabase
  */
 export async function updateUserProfileInSupabase(
   userId: string,
-  updates: Partial<UserProfile>
+  updated: Partial<UserProfile>
 ): Promise<void> {
   const payload: any = {};
-  if (updates.name !== undefined) payload.name = updates.name;
-  if (updates.status !== undefined) payload.status = updates.status;
-  if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
-  if (updates.weightKg !== undefined) payload.weight_kg = updates.weightKg;
-  if (updates.activityLevel !== undefined) payload.activity_level = updates.activityLevel;
-  if (updates.dailyTargetMl !== undefined) payload.daily_target_ml = updates.dailyTargetMl;
-  if (updates.preferredUnit !== undefined) payload.preferred_unit = updates.preferredUnit;
-  if (updates.smartReminders !== undefined) payload.smart_reminders = updates.smartReminders;
+  if (updated.name !== undefined) payload.name = updated.name;
+  if (updated.avatarUrl !== undefined) payload.avatar_url = updated.avatarUrl;
+  if (updated.dailyTargetMl !== undefined) payload.daily_target_ml = updated.dailyTargetMl;
+  if (updated.preferredUnit !== undefined) payload.preferred_unit = updated.preferredUnit;
+  if (updated.currentStreak !== undefined) payload.current_streak = updated.currentStreak;
+  if (updated.longestStreak !== undefined) payload.longest_streak = updated.longestStreak;
 
   await supabase.from('profiles').update(payload).eq('id', userId);
 }
 
 /**
- * Fetch water logs for a specific user ordered by created_at desc
+ * Fetch User Water Logs
  */
 export async function fetchUserLogs(userId: string): Promise<LogEntry[]> {
   const { data, error } = await supabase
@@ -174,25 +169,19 @@ export async function fetchUserLogs(userId: string): Promise<LogEntry[]> {
 
   if (error || !data) return [];
 
-  return data.map((item) => {
-    const timestamp = new Date(item.created_at);
-    const isToday = timestamp.toDateString() === new Date().toDateString();
-
+  return data.map((log) => {
+    const dateObj = new Date(log.created_at);
     return {
-      id: item.id,
-      amountMl: item.amount_ml,
-      timestamp,
-      formattedTime: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timeAgo: isToday ? 'Today' : timestamp.toLocaleDateString(),
-      dateStr: isToday
-        ? `Today, ${timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
-        : timestamp.toLocaleDateString(),
+      id: log.id,
+      amountMl: log.amount_ml,
+      timestamp: log.created_at,
+      formattedTime: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
   });
 }
 
 /**
- * Insert a new water entry log for a user
+ * Add Water Log to Supabase
  */
 export async function addWaterLogToSupabase(
   userId: string,
@@ -206,117 +195,56 @@ export async function addWaterLogToSupabase(
 
   if (error || !data) return null;
 
-  const timestamp = new Date(data.created_at);
+  const dateObj = new Date(data.created_at);
   return {
     id: data.id,
     amountMl: data.amount_ml,
-    timestamp,
-    formattedTime: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    timeAgo: 'Just now',
-    dateStr: `Today, ${timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })}`,
+    timestamp: data.created_at,
+    formattedTime: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 }
 
 /**
- * Fetch leaderboard ranking calculated across all registered user profiles
+ * Fetch User Unlocked Challenges
  */
-export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Friend[]> {
-  const { data: profiles } = await supabase.from('profiles').select('*');
-  const { data: allLogs } = await supabase.from('logs').select('*');
-
-  if (!profiles) return [];
-
-  const todayStr = new Date().toDateString();
-
-  const friendsData = profiles.map((p) => {
-    const userTodayLogs = (allLogs || []).filter(
-      (l) => l.user_id === p.id && new Date(l.created_at).toDateString() === todayStr
-    );
-    const totalMlToday = userTodayLogs.reduce((sum, l) => sum + l.amount_ml, 0);
-    const intakeLiters = Number((totalMlToday / 1000).toFixed(2));
-    const targetLiters = Number(((p.daily_target_ml || 2500) / 1000).toFixed(2));
-    const goalPercentage = Math.min(
-      100,
-      Math.round((totalMlToday / (p.daily_target_ml || 2500)) * 100)
-    );
-
-    return {
-      id: p.id,
-      name: p.id === currentUserId ? `You (${p.name})` : p.name,
-      avatarUrl: p.avatar_url || USER_AVATAR_URL,
-      rank: 1,
-      streakDays: p.current_streak || 1,
-      intakeLiters,
-      targetLiters,
-      goalPercentage,
-      cheered: false,
-      nudged: false,
-    };
-  });
-
-  // Sort by highest intake
-  friendsData.sort((a, b) => b.intakeLiters - a.intakeLiters);
-  friendsData.forEach((f, idx) => {
-    f.rank = idx + 1;
-  });
-
-  return friendsData;
-}
-
-/**
- * Fetch user unlocked challenge IDs from database
- */
-export async function fetchUserChallenges(userId: string): Promise<Record<string, boolean>> {
+export async function fetchUserChallenges(
+  userId: string
+): Promise<Record<string, boolean>> {
   const { data, error } = await supabase
     .from('user_challenges')
-    .select('challenge_id, unlocked')
+    .select('challenge_id')
     .eq('user_id', userId);
 
   if (error || !data) return {};
 
-  return data.reduce((acc, row) => {
-    acc[row.challenge_id] = row.unlocked;
-    return acc;
-  }, {} as Record<string, boolean>);
+  const unlockedMap: Record<string, boolean> = {};
+  data.forEach((row) => {
+    unlockedMap[row.challenge_id] = true;
+  });
+
+  return unlockedMap;
 }
 
 /**
- * Unlock a specific challenge for a user in database
+ * Unlock Challenge in Supabase
  */
 export async function unlockChallengeInSupabase(
   userId: string,
   challengeId: string
 ): Promise<void> {
   await supabase.from('user_challenges').upsert(
-    {
-      user_id: userId,
-      challenge_id: challengeId,
-      unlocked: true,
-      unlocked_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id, challenge_id' }
+    [
+      {
+        user_id: userId,
+        challenge_id: challengeId,
+      },
+    ],
+    { onConflict: 'user_id,challenge_id' }
   );
 }
 
-// --- Utility Functions ---
-
-export function mlToOz(ml: number): number {
-  return Number((ml * 0.033814).toFixed(1));
-}
-
-export function formatVolume(ml: number, unit: 'ml' | 'oz'): string {
-  if (unit === 'oz') {
-    return `${mlToOz(ml)} oz`;
-  }
-  if (ml >= 1000) {
-    return `${(ml / 1000).toFixed(2)}L`;
-  }
-  return `${Math.round(ml)}ml`;
-}
-import { NotificationItem } from './types'; // Make sure NotificationItem is imported
-
 /**
- * Send a cheer or nudge notification to a friend in Supabase
+ * Send Notification in Supabase
  */
 export async function sendNotificationInSupabase(
   senderId: string,
@@ -335,7 +263,7 @@ export async function sendNotificationInSupabase(
 }
 
 /**
- * Fetch unread notifications for the current user
+ * Fetch Unread Notifications
  */
 export async function fetchUserNotifications(userId: string): Promise<NotificationItem[]> {
   const { data, error } = await supabase
@@ -358,7 +286,7 @@ export async function fetchUserNotifications(userId: string): Promise<Notificati
 }
 
 /**
- * Mark a notification as read
+ * Mark Notification as Read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
   await supabase
@@ -366,10 +294,9 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
     .update({ is_read: true })
     .eq('id', notificationId);
 }
-import { FriendRequest } from './types';
 
 /**
- * Send a friend request by email
+ * Send Friend Request by Email
  */
 export async function sendFriendRequestByEmail(
   requesterId: string,
@@ -412,7 +339,7 @@ export async function sendFriendRequestByEmail(
 }
 
 /**
- * Fetch pending incoming friend requests for a user
+ * Fetch Pending Incoming Friend Requests
  */
 export async function fetchPendingFriendRequests(userId: string): Promise<FriendRequest[]> {
   const { data, error } = await supabase
@@ -438,7 +365,7 @@ export async function fetchPendingFriendRequests(userId: string): Promise<Friend
 }
 
 /**
- * Accept or decline a friend request
+ * Accept or Decline Friend Request
  */
 export async function respondToFriendRequest(
   friendshipId: string,
@@ -457,4 +384,68 @@ export async function respondToFriendRequest(
       .eq('id', friendshipId);
     return !error;
   }
+}
+
+/**
+ * Fetch Friends Leaderboard (Only Accepted Friends + Current User)
+ */
+export async function fetchFriendsLeaderboard(currentUserId: string): Promise<Friend[]> {
+  // 1. Fetch accepted friendships involving currentUserId
+  const { data: friendships } = await supabase
+    .from('friendships')
+    .select('requester_id, receiver_id')
+    .eq('status', 'accepted')
+    .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+  const friendUserIds = new Set<string>([currentUserId]);
+
+  if (friendships) {
+    friendships.forEach((f) => {
+      friendUserIds.add(f.requester_id);
+      friendUserIds.add(f.receiver_id);
+    });
+  }
+
+  // 2. Fetch profiles for accepted friends + self
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', Array.from(friendUserIds));
+
+  if (!profiles) return [];
+
+  // 3. Fetch today's logs for these users
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data: logs } = await supabase
+    .from('logs')
+    .select('user_id, amount_ml')
+    .gte('created_at', todayStart.toISOString())
+    .in('user_id', Array.from(friendUserIds));
+
+  // Sum intakes per user
+  const intakeMap: Record<string, number> = {};
+  logs?.forEach((log) => {
+    intakeMap[log.user_id] = (intakeMap[log.user_id] || 0) + log.amount_ml;
+  });
+
+  // Construct Leaderboard items
+  const leaderboard: Friend[] = profiles.map((p) => {
+    const totalMl = intakeMap[p.id] || 0;
+    const targetMl = p.daily_target_ml || 2500;
+    return {
+      id: p.id,
+      name: p.name || 'Water Buddy',
+      avatarUrl: p.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      intakeLiters: Number((totalMl / 1000).toFixed(2)),
+      targetLiters: Number((targetMl / 1000).toFixed(1)),
+      goalPercentage: Math.min(100, Math.round((totalMl / targetMl) * 100)),
+      rank: 1,
+    };
+  });
+
+  // Sort by volume descending and assign ranks
+  leaderboard.sort((a, b) => b.intakeLiters - a.intakeLiters);
+  return leaderboard.map((item, index) => ({ ...item, rank: index + 1 }));
 }
