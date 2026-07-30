@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import { Friend, FriendRequest } from '../../types';
 
 interface FriendsScreenProps {
-  friends: Friend[];
-  pendingRequests: FriendRequest[];
+  friends?: Friend[];
+  pendingRequests?: FriendRequest[];
   currentUserId?: string;
-  onCheerFriend: (id: string) => void;
-  onNudgeFriend: (id: string) => void;
-  onSendInvite: (email: string) => Promise<{ success: boolean; message: string }>;
-  onRespondRequest: (requestId: string, accept: boolean) => void;
+  onCheerFriend?: (id: string) => void;
+  onNudgeFriend?: (id: string) => void;
+  onSendInvite?: (email: string) => Promise<{ success: boolean; message: string }>;
+  onRespondRequest?: (requestId: string, accept: boolean) => void;
 }
 
 export const FriendsScreen: React.FC<FriendsScreenProps> = ({
-  friends,
-  pendingRequests,
+  friends = [],
+  pendingRequests = [],
   currentUserId,
   onCheerFriend,
   onNudgeFriend,
@@ -25,24 +25,31 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
   const [inviteStatus, setInviteStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const topThree = friends.slice(0, 3);
+  // Fallback guards to prevent render crashes
+  const safeFriends = Array.isArray(friends) ? friends : [];
+  const safeRequests = Array.isArray(pendingRequests) ? pendingRequests : [];
+  const topThree = safeFriends.slice(0, 3);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput.trim()) return;
+    if (!emailInput.trim() || !onSendInvite) return;
 
     setLoading(true);
     setInviteStatus(null);
-    const result = await onSendInvite(emailInput);
-    setLoading(false);
-    setInviteStatus(result);
-
-    if (result.success) {
-      setEmailInput('');
-      setTimeout(() => {
-        setIsInviteOpen(false);
-        setInviteStatus(null);
-      }, 2000);
+    try {
+      const result = await onSendInvite(emailInput);
+      setInviteStatus(result);
+      if (result.success) {
+        setEmailInput('');
+        setTimeout(() => {
+          setIsInviteOpen(false);
+          setInviteStatus(null);
+        }, 2000);
+      }
+    } catch (err: any) {
+      setInviteStatus({ success: false, message: 'An error occurred while sending the request.' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,14 +75,14 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
       </div>
 
       {/* Pending Invitations Section */}
-      {pendingRequests.length > 0 && (
+      {safeRequests.length > 0 && (
         <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
           <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
             <span className="material-symbols-outlined text-base">mail</span>
-            Pending Friend Requests ({pendingRequests.length})
+            Pending Friend Requests ({safeRequests.length})
           </h3>
           <div className="space-y-2">
-            {pendingRequests.map((req) => (
+            {safeRequests.map((req) => (
               <div
                 key={req.id}
                 className="bg-white p-3 rounded-xl flex items-center justify-between shadow-sm border border-amber-100"
@@ -84,23 +91,23 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100">
                     <img
                       src={req.requesterAvatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-                      alt={req.requesterName}
+                      alt={req.requesterName || 'User'}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <span className="font-['Montserrat'] text-xs font-bold text-[#111c2d]">
-                    {req.requesterName}
+                    {req.requesterName || 'A user'}
                   </span>
                 </div>
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => onRespondRequest(req.id, true)}
+                    onClick={() => onRespondRequest && onRespondRequest(req.id, true)}
                     className="bg-[#00677f] text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-[#00566a] cursor-pointer"
                   >
                     Accept
                   </button>
                   <button
-                    onClick={() => onRespondRequest(req.id, false)}
+                    onClick={() => onRespondRequest && onRespondRequest(req.id, false)}
                     className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-gray-200 cursor-pointer"
                   >
                     Decline
@@ -129,21 +136,21 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                   }`}
                 >
                   <img
-                    src={friend.avatarUrl}
-                    alt={friend.name}
+                    src={friend.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                    alt={friend.name || 'Friend'}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="absolute -top-2 -right-1 w-5 h-5 bg-[#00677f] text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
-                  #{friend.rank}
+                  #{friend.rank || 1}
                 </div>
               </div>
 
               <span className="font-['Montserrat'] text-xs font-bold text-[#111c2d] mt-2 truncate max-w-[80px]">
-                {friend.name}
+                {friend.name || 'Buddy'}
               </span>
               <span className="text-[10px] font-bold text-[#00677f]">
-                {friend.intakeLiters}L
+                {friend.intakeLiters ?? 0}L
               </span>
             </div>
           ))}
@@ -156,13 +163,13 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
           Your Friends
         </h3>
 
-        {friends.length <= 1 ? (
+        {safeFriends.length <= 1 ? (
           <div className="bg-[#f0f3ff] rounded-2xl p-6 text-center text-xs text-[#6c797f] border border-white/60">
             You don't have any added friends yet. Tap <strong>+ Add Friend</strong> above to invite your buddies!
           </div>
         ) : (
           <div className="space-y-2">
-            {friends.map((friend) => {
+            {safeFriends.map((friend) => {
               const isUser = friend.id === currentUserId;
 
               return (
@@ -176,21 +183,21 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <span className="font-['Montserrat'] text-xs font-bold text-[#3c494e] w-4">
-                      #{friend.rank}
+                      #{friend.rank || 1}
                     </span>
                     <div className="w-10 h-10 rounded-full overflow-hidden border border-[#e7eeff] bg-slate-100 shrink-0">
                       <img
-                        src={friend.avatarUrl}
-                        alt={friend.name}
+                        src={friend.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                        alt={friend.name || 'Friend'}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div>
-                      <p className="font-[#111c2d] font-['Montserrat'] text-xs font-bold">
-                        {friend.name} {isUser && '(You)'}
+                      <p className="font-['Montserrat'] text-xs font-bold text-[#111c2d]">
+                        {friend.name || 'Buddy'} {isUser && '(You)'}
                       </p>
                       <p className="text-[10px] text-[#6c797f] font-semibold">
-                        {friend.intakeLiters}L / {friend.targetLiters}L ({friend.goalPercentage}%)
+                        {friend.intakeLiters ?? 0}L / {friend.targetLiters ?? 2.5}L ({friend.goalPercentage ?? 0}%)
                       </p>
                     </div>
                   </div>
@@ -198,7 +205,7 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                   {!isUser && (
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => onCheerFriend(friend.id)}
+                        onClick={() => onCheerFriend && onCheerFriend(friend.id)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           friend.cheered
                             ? 'bg-amber-100 text-amber-700'
@@ -208,7 +215,7 @@ export const FriendsScreen: React.FC<FriendsScreenProps> = ({
                         {friend.cheered ? '👏 Cheered' : '👏 Cheer'}
                       </button>
                       <button
-                        onClick={() => onNudgeFriend(friend.id)}
+                        onClick={() => onNudgeFriend && onNudgeFriend(friend.id)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           friend.nudged
                             ? 'bg-sky-100 text-sky-700'
